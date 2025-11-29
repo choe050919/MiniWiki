@@ -193,7 +193,9 @@ function renderHistory(pageName) {
 
   currentPageEl.textContent = "History: " + pageName;
 
+  // 해당 페이지 기록만 필터링하되, 원본 인덱스도 함께 저장
   const pageHistory = history
+    .map((h, idx) => ({ ...h, originalIdx: idx }))
     .filter(h => h.page === pageName)
     .reverse(); // 최신순
 
@@ -203,10 +205,10 @@ function renderHistory(pageName) {
     html += "<p>수정 기록이 없습니다.</p>";
   } else {
     html += "<ul class='doc-list'>";
-    pageHistory.forEach((h, idx) => {
+    pageHistory.forEach((h) => {
       const date = new Date(h.time);
       const timeStr = date.toLocaleString("ko-KR");
-      html += "<li><a href='#' class='history-link' data-idx='" + (history.length - 1 - idx) + "'>" + timeStr + "</a></li>";
+      html += "<li><a href='#' class='history-link' data-idx='" + h.originalIdx + "'>" + timeStr + "</a></li>";
     });
     html += "</ul>";
   }
