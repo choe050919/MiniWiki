@@ -139,7 +139,7 @@ function renderCurrentPage() {
 
 function renderPreview() {
   const text = state.pages[state.current] || "";
-  previewEl.innerHTML = marked.parse(text);
+  previewEl.innerHTML = '<div class="content-wrapper">' + marked.parse(text) + '</div>';
   attachInternalLinkHandlers();
 }
 
@@ -148,7 +148,8 @@ function renderAllList() {
 
   const names = Object.keys(state.pages).sort((a, b) => a.localeCompare(b, "ko"));
 
-  let html = "<h1>All Documents</h1>";
+  let html = '<div class="content-wrapper">';
+  html += "<h1>All Documents</h1>";
   if (names.length === 0) {
     html += "<p>아직 문서가 없습니다.</p>";
   } else {
@@ -160,7 +161,8 @@ function renderAllList() {
     }
     html += "</ul>";
   }
-  html += "<p style='margin-top:12px; font-size:13px; color:#9ca3af;'>문서 이름을 클릭하면 해당 문서로 이동합니다.</p>";
+  html += "<p style='margin-top:12px; font-size:13px; color:var(--text-muted);'>문서 이름을 클릭하면 해당 문서로 이동합니다.</p>";
+  html += '</div>';
 
   previewEl.innerHTML = html;
 
@@ -180,7 +182,7 @@ function updatePreview() {
     return;
   }
   const text = editorEl.value;
-  previewEl.innerHTML = marked.parse(text);
+  previewEl.innerHTML = '<div class="content-wrapper">' + marked.parse(text) + '</div>';
   attachInternalLinkHandlers();
 }
 
@@ -199,7 +201,8 @@ function renderHistory(pageName) {
     .filter(h => h.page === pageName)
     .reverse(); // 최신순
 
-  let html = "<h1>" + pageName + " 수정 기록</h1>";
+  let html = '<div class="content-wrapper">';
+  html += "<h1>" + pageName + " 수정 기록</h1>";
   
   if (pageHistory.length === 0) {
     html += "<p>수정 기록이 없습니다.</p>";
@@ -215,6 +218,7 @@ function renderHistory(pageName) {
   
   html += "<p style='margin-top:12px; font-size:13px; color:var(--text-muted);'>항목을 클릭하면 해당 버전을 볼 수 있습니다.</p>";
   html += "<p style='font-size:13px; color:var(--text-muted);'><a href='#' id='back-to-page'>← 문서로 돌아가기</a></p>";
+  html += '</div>';
 
   previewEl.innerHTML = html;
 
@@ -243,12 +247,14 @@ function renderHistoryDetail(idx) {
 
   currentPageEl.textContent = "History: " + h.page + " (" + new Date(h.time).toLocaleString("ko-KR") + ")";
 
-  let html = marked.parse(h.content);
+  let html = '<div class="content-wrapper">';
+  html += marked.parse(h.content);
   html += "<hr style='border-color:var(--border); margin: 20px 0;'>";
   html += "<p style='font-size:13px; color:var(--text-muted);'>";
   html += "<a href='#' id='restore-version'>이 버전으로 복원</a> | ";
   html += "<a href='#' id='back-to-history'>← 기록 목록으로</a>";
   html += "</p>";
+  html += '</div>';
 
   previewEl.innerHTML = html;
 

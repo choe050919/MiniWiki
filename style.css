@@ -134,12 +134,18 @@ body {
 #preview {
   width: 50%;
   height: 100%;
-  padding: 12px;
+  padding: 24px 40px;
   box-sizing: border-box;
   overflow: auto;
   background: var(--bg-primary);
   color: var(--text-secondary);
   border-left: 1px solid var(--border);
+}
+
+/* 콘텐츠 중앙 정렬 + 최적 읽기 폭 */
+#preview .content-wrapper {
+  max-width: 65ch;
+  margin: 0 auto;
 }
 
 /* 읽기 모드: 프리뷰가 전체 */
