@@ -429,3 +429,62 @@ body {
   color: var(--link);
   background: var(--btn-bg);
 }
+
+/* 좌측 사이드바 - 문서 목록 */
+.pages-filter {
+  margin-bottom: 8px;
+}
+
+#pages-filter-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  box-sizing: border-box;
+  outline: none;
+}
+
+#pages-filter-input:focus {
+  border-color: var(--btn-primary);
+}
+
+#pages-filter-input::placeholder {
+  color: var(--text-placeholder);
+}
+
+.pages-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pages-item {
+  margin: 2px 0;
+}
+
+.pages-link {
+  display: block;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: background 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pages-link:hover {
+  color: var(--link);
+  background: var(--btn-bg);
+}
+
+.pages-item.active .pages-link {
+  color: var(--text-primary);
+  background: var(--btn-bg);
+  font-weight: 500;
+}

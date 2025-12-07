@@ -291,6 +291,89 @@ function renderHistoryDetail(idx) {
 // 우측 사이드바 탭 시스템
 let currentRightTab = "toc"; // "toc" | "backlinks"
 
+// 좌측 사이드바 탭 시스템
+let currentLeftTab = "pages"; // "pages" | "search"
+
+function buildSidebarLeft() {
+  const sidebarLeft = document.getElementById("sidebar-left");
+  if (!sidebarLeft) return;
+
+  // 탭 헤더 생성
+  let html = '<div class="sidebar-tabs">';
+  html += `<button class="sidebar-tab ${currentLeftTab === 'pages' ? 'active' : ''}" data-tab="pages">문서</button>`;
+  html += `<button class="sidebar-tab ${currentLeftTab === 'search' ? 'active' : ''}" data-tab="search">검색</button>`;
+  html += '</div>';
+
+  // 탭 내용
+  html += '<div class="sidebar-tab-content">';
+  if (currentLeftTab === "pages") {
+    html += buildPagesContent();
+  } else if (currentLeftTab === "search") {
+    html += buildSearchContent();
+  }
+  html += '</div>';
+
+  sidebarLeft.innerHTML = html;
+
+  // 탭 버튼 이벤트
+  sidebarLeft.querySelectorAll(".sidebar-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentLeftTab = btn.getAttribute("data-tab");
+      buildSidebarLeft();
+    });
+  });
+}
+
+function buildPagesContent() {
+  const names = Object.keys(state.pages).sort((a, b) => a.localeCompare(b, "ko"));
+  
+  let html = '<div class="pages-filter">';
+  html += '<input type="text" id="pages-filter-input" placeholder="문서 필터..." />';
+  html += '</div>';
+  
+  html += '<ul class="pages-list">';
+  for (const name of names) {
+    const isActive = name === state.current && !isAllMode && !isHistoryMode;
+    html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}">`;
+    html += `<a href="#" class="pages-link">${name}</a>`;
+    html += '</li>';
+  }
+  html += '</ul>';
+  
+  // 필터링 및 클릭 이벤트는 buildSidebarLeft 후에 바인딩
+  setTimeout(() => {
+    const filterInput = document.getElementById("pages-filter-input");
+    const items = document.querySelectorAll(".pages-item");
+    
+    if (filterInput) {
+      filterInput.addEventListener("input", () => {
+        const query = filterInput.value.toLowerCase().trim();
+        items.forEach(item => {
+          const name = decodeURIComponent(item.getAttribute("data-name")).toLowerCase();
+          item.style.display = name.includes(query) ? "" : "none";
+        });
+      });
+    }
+    
+    items.forEach(item => {
+      item.querySelector(".pages-link").addEventListener("click", (e) => {
+        e.preventDefault();
+        const name = decodeURIComponent(item.getAttribute("data-name"));
+        state.current = name;
+        isHistoryMode = false;
+        setAllMode(false);
+        saveState();
+      });
+    });
+  }, 0);
+  
+  return html;
+}
+
+function buildSearchContent() {
+  return '<p class="sidebar-empty">검색 (준비 중)</p>';
+}
+
 function buildSidebarRight() {
   const sidebarRight = document.getElementById("sidebar-right");
   if (!sidebarRight) return;
@@ -447,6 +530,7 @@ function escapeRegExp(string) {
 // 기존 호환성을 위한 별칭
 function buildTOC() {
   buildSidebarRight();
+  buildSidebarLeft();
 }
 
 // 내부 링크 처리
