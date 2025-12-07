@@ -143,6 +143,7 @@ function renderPreview() {
   html += '</div>';
   previewEl.innerHTML = html;
   attachInternalLinkHandlers();
+  addVisited(state.current);
   buildTOC();
 }
 
@@ -292,7 +293,36 @@ function renderHistoryDetail(idx) {
 let currentRightTab = "toc"; // "toc" | "backlinks"
 
 // 좌측 사이드바 탭 시스템
-let currentLeftTab = "pages"; // "pages" | "search"
+let currentLeftTab = "pages"; // "pages" | "recent"
+
+const VISITED_KEY = "miniWikiVisited";
+let visited = []; // 최근 방문 문서 (최대 10개)
+
+function loadVisited() {
+  const raw = localStorage.getItem(VISITED_KEY);
+  if (raw) {
+    try {
+      visited = JSON.parse(raw);
+    } catch (e) {
+      visited = [];
+    }
+  }
+}
+
+function saveVisited() {
+  localStorage.setItem(VISITED_KEY, JSON.stringify(visited));
+}
+
+function addVisited(pageName) {
+  // 이미 있으면 제거 후 맨 앞에 추가
+  visited = visited.filter(v => v !== pageName);
+  visited.unshift(pageName);
+  // 최대 10개 유지
+  if (visited.length > 10) {
+    visited = visited.slice(0, 10);
+  }
+  saveVisited();
+}
 
 function buildSidebarLeft() {
   const sidebarLeft = document.getElementById("sidebar-left");
@@ -301,15 +331,15 @@ function buildSidebarLeft() {
   // 탭 헤더 생성
   let html = '<div class="sidebar-tabs">';
   html += `<button class="sidebar-tab ${currentLeftTab === 'pages' ? 'active' : ''}" data-tab="pages">문서</button>`;
-  html += `<button class="sidebar-tab ${currentLeftTab === 'search' ? 'active' : ''}" data-tab="search">검색</button>`;
+  html += `<button class="sidebar-tab ${currentLeftTab === 'recent' ? 'active' : ''}" data-tab="recent">최근</button>`;
   html += '</div>';
 
   // 탭 내용
   html += '<div class="sidebar-tab-content">';
   if (currentLeftTab === "pages") {
     html += buildPagesContent();
-  } else if (currentLeftTab === "search") {
-    html += buildSearchContent();
+  } else if (currentLeftTab === "recent") {
+    html += buildRecentContent();
   }
   html += '</div>';
 
@@ -370,8 +400,41 @@ function buildPagesContent() {
   return html;
 }
 
-function buildSearchContent() {
-  return '<p class="sidebar-empty">검색 (준비 중)</p>';
+function buildRecentContent() {
+  if (visited.length === 0) {
+    return '<p class="sidebar-empty">최근 방문한 문서가 없습니다</p>';
+  }
+  
+  // 삭제된 문서 제외
+  const validVisited = visited.filter(name => state.pages[name]);
+  
+  if (validVisited.length === 0) {
+    return '<p class="sidebar-empty">최근 방문한 문서가 없습니다</p>';
+  }
+  
+  let html = '<ul class="pages-list">';
+  for (const name of validVisited) {
+    const isActive = name === state.current && !isAllMode && !isHistoryMode;
+    html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}">`;
+    html += `<a href="#" class="pages-link">${name}</a>`;
+    html += '</li>';
+  }
+  html += '</ul>';
+  
+  setTimeout(() => {
+    document.querySelectorAll("#sidebar-left .pages-item").forEach(item => {
+      item.querySelector(".pages-link").addEventListener("click", (e) => {
+        e.preventDefault();
+        const name = decodeURIComponent(item.getAttribute("data-name"));
+        state.current = name;
+        isHistoryMode = false;
+        setAllMode(false);
+        saveState();
+      });
+    });
+  }, 0);
+  
+  return html;
 }
 
 function buildSidebarRight() {
@@ -771,6 +834,7 @@ document.addEventListener("keydown", (e) => {
 // 초기화
 loadState();
 loadHistory();
+loadVisited();
 setAllMode(false);
 
 // 저장된 테마 적용
