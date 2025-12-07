@@ -212,6 +212,28 @@ body {
   border: none;
 }
 
+.title-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.title-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.title-btn:hover {
+  background: var(--btn-bg);
+  color: var(--text-primary);
+}
+
 .title-pin-btn {
   flex-shrink: 0;
   padding: 4px 8px;

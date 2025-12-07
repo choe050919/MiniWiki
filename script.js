@@ -5,7 +5,6 @@ const HISTORY_KEY = "miniWikiHistory";
 const editorEl = document.getElementById("editor");
 const previewEl = document.getElementById("preview");
 const commandEl = document.getElementById("command");
-const btnEdit = document.getElementById("btn-edit");
 const btnSave = document.getElementById("btn-save");
 const btnCancel = document.getElementById("btn-cancel");
 
@@ -102,14 +101,12 @@ function setEditMode(on) {
     editorEl.value = state.pages[state.current] || "";
     editorEl.classList.remove("hidden");
     previewEl.classList.remove("fullwidth");
-    btnEdit.classList.add("hidden");
     btnSave.classList.remove("hidden");
     btnCancel.classList.remove("hidden");
     updatePreview();
   } else {
     editorEl.classList.add("hidden");
     previewEl.classList.add("fullwidth");
-    btnEdit.classList.remove("hidden");
     btnSave.classList.add("hidden");
     btnCancel.classList.add("hidden");
     renderPreview();
@@ -120,12 +117,8 @@ function setAllMode(on) {
   isAllMode = on;
   if (isAllMode) {
     setEditMode(false);
-    btnEdit.classList.add("hidden");
-    btnHistory.classList.add("hidden");
     renderAllList();
   } else {
-    btnEdit.classList.remove("hidden");
-    btnHistory.classList.remove("hidden");
     renderCurrentPage();
   }
 }
@@ -142,26 +135,44 @@ function renderPreview() {
   let html = '<div class="content-wrapper">';
   html += '<div class="page-title-row">';
   html += '<h1 class="page-title">' + state.current + '</h1>';
+  html += '<div class="title-actions">';
+  html += `<button class="title-btn" id="title-btn-edit" title="편집">편집</button>`;
+  html += `<button class="title-btn" id="title-btn-history" title="역사">역사</button>`;
   html += `<button class="title-pin-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? '고정 해제' : '고정'}">📌</button>`;
+  html += '</div>';
   html += '</div>';
   html += marked.parse(text);
   html += '</div>';
   previewEl.innerHTML = html;
   attachInternalLinkHandlers();
-  attachPinButtonHandler();
+  attachTitleButtonHandlers();
   addVisited(state.current);
   buildTOC();
 }
 
-function attachPinButtonHandler() {
+function attachTitleButtonHandlers() {
   const pinBtn = previewEl.querySelector(".title-pin-btn");
+  const editBtn = previewEl.querySelector("#title-btn-edit");
+  const historyBtn = previewEl.querySelector("#title-btn-history");
+  
   if (pinBtn) {
     pinBtn.addEventListener("click", () => {
       togglePin(state.current);
-      // 버튼 상태 업데이트
       const isPinned = pinned.includes(state.current);
       pinBtn.classList.toggle("pinned", isPinned);
       pinBtn.title = isPinned ? "고정 해제" : "고정";
+    });
+  }
+  
+  if (editBtn) {
+    editBtn.addEventListener("click", () => {
+      setEditMode(true);
+    });
+  }
+  
+  if (historyBtn) {
+    historyBtn.addEventListener("click", () => {
+      renderHistory(state.current);
     });
   }
 }
@@ -218,8 +229,6 @@ function renderHistory(pageName) {
   isHistoryMode = true;
   isAllMode = false;
   setEditMode(false);
-  btnEdit.classList.add("hidden");
-  btnHistory.classList.add("hidden");
 
   // 해당 페이지 기록만 필터링하되, 원본 인덱스도 함께 저장
   const pageHistory = history
@@ -228,7 +237,12 @@ function renderHistory(pageName) {
     .reverse(); // 최신순
 
   let html = '<div class="content-wrapper">';
-  html += '<h1 class="page-title">History: ' + pageName + '</h1>';
+  html += '<div class="page-title-row">';
+  html += '<h1 class="page-title">역사: ' + pageName + '</h1>';
+  html += '<div class="title-actions">';
+  html += '<button class="title-btn" id="back-to-page">← 문서로</button>';
+  html += '</div>';
+  html += '</div>';
   
   if (pageHistory.length === 0) {
     html += "<p>수정 기록이 없습니다.</p>";
@@ -243,7 +257,6 @@ function renderHistory(pageName) {
   }
   
   html += "<p style='margin-top:12px; font-size:13px; color:var(--text-muted);'>항목을 클릭하면 해당 버전을 볼 수 있습니다.</p>";
-  html += "<p style='font-size:13px; color:var(--text-muted);'><a href='#' id='back-to-page'>← 문서로 돌아가기</a></p>";
   html += '</div>';
 
   previewEl.innerHTML = html;
@@ -257,7 +270,7 @@ function renderHistory(pageName) {
     });
   });
 
-  // 돌아가기 링크
+  // 돌아가기 버튼
   document.getElementById("back-to-page").addEventListener("click", (e) => {
     e.preventDefault();
     isHistoryMode = false;
@@ -276,14 +289,15 @@ function renderHistoryDetail(idx) {
   const timeStr = new Date(h.time).toLocaleString("ko-KR");
 
   let html = '<div class="content-wrapper">';
-  html += '<h1 class="page-title">History: ' + h.page + '</h1>';
+  html += '<div class="page-title-row">';
+  html += '<h1 class="page-title">역사: ' + h.page + '</h1>';
+  html += '<div class="title-actions">';
+  html += '<button class="title-btn" id="restore-version">이 버전으로 복원</button>';
+  html += '<button class="title-btn" id="back-to-history">← 목록으로</button>';
+  html += '</div>';
+  html += '</div>';
   html += '<p class="history-timestamp">' + timeStr + '</p>';
   html += marked.parse(h.content);
-  html += "<hr style='border-color:var(--border); margin: 20px 0;'>";
-  html += "<p style='font-size:13px; color:var(--text-muted);'>";
-  html += "<a href='#' id='restore-version'>이 버전으로 복원</a> | ";
-  html += "<a href='#' id='back-to-history'>← 기록 목록으로</a>";
-  html += "</p>";
   html += '</div>';
 
   previewEl.innerHTML = html;
@@ -768,7 +782,6 @@ function attachInternalLinkHandlers() {
 }
 
 const btnTheme = document.getElementById("btn-theme");
-const btnHistory = document.getElementById("btn-history");
 const btnExport = document.getElementById("btn-export");
 const btnImport = document.getElementById("btn-import");
 const importFileEl = document.getElementById("import-file");
@@ -837,12 +850,6 @@ function importData(file) {
 }
 
 // 이벤트 리스너
-btnEdit.addEventListener("click", () => {
-  if (!isAllMode) {
-    setEditMode(true);
-  }
-});
-
 btnSave.addEventListener("click", () => {
   const newContent = editorEl.value;
   addHistory(state.current, newContent);
@@ -853,12 +860,6 @@ btnSave.addEventListener("click", () => {
 
 btnCancel.addEventListener("click", () => {
   setEditMode(false);
-});
-
-btnHistory.addEventListener("click", () => {
-  if (!isAllMode && !isHistoryMode) {
-    renderHistory(state.current);
-  }
 });
 
 btnTheme.addEventListener("click", () => {
