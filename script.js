@@ -1,26 +1,39 @@
+// ========== 상수 ==========
 const STORAGE_KEY = "miniWikiDocs";
 const HISTORY_KEY = "miniWikiHistory";
+const VISITED_KEY = "miniWikiVisited";
+const PINNED_KEY = "miniWikiPinned";
 
-// DOM 요소
+// ========== 앱 상태 (데이터) ==========
+let state = {
+  current: "Home",
+  pages: {},
+  mode: "view", // "view" | "edit" | "list" | "history" | "historyDetail"
+  historyPage: null,
+  historyIdx: null
+};
+let history = [];      // { page, time, content }
+let pinned = [];       // 고정된 문서 목록
+let visitedTime = {};  // { pageName: timestamp }
+
+// ========== UI 상태 ==========
+let currentLeftTab = "all";    // "all" | "pinned"
+let currentRightTab = "toc";   // "toc" | "backlinks"
+let pagesSortMode = "alpha";   // "alpha" | "recent"
+let draggedItem = null;        // 드래그 중인 요소
+
+// ========== DOM 요소 ==========
 const editorEl = document.getElementById("editor");
 const previewEl = document.getElementById("preview");
 const commandEl = document.getElementById("command");
 const btnSave = document.getElementById("btn-save");
 const btnCancel = document.getElementById("btn-cancel");
+const btnTheme = document.getElementById("btn-theme");
+const btnExport = document.getElementById("btn-export");
+const btnImport = document.getElementById("btn-import");
+const importFileEl = document.getElementById("import-file");
 
-// 상태
-let state = {
-  current: "Home",
-  pages: {}
-};
-
-let history = []; // { page, time, content }
-
-let isAllMode = false;
-let isEditMode = false;
-let isHistoryMode = false;
-
-// 저장/불러오기
+// ========== 저장/불러오기 ==========
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -43,19 +56,31 @@ function loadState() {
           "[외부 링크](https://example.com)",
           "```"
         ].join("\n")
-      }
+      },
+      mode: "view",
+      historyPage: null,
+      historyIdx: null
     };
     saveState();
   } else {
     try {
       state = JSON.parse(raw);
+      // mode가 없으면 추가 (기존 데이터 호환)
+      if (!state.mode) {
+        state.mode = "view";
+        state.historyPage = null;
+        state.historyIdx = null;
+      }
     } catch (e) {
       console.error("저장된 데이터 파싱 실패, 초기화합니다.", e);
       state = {
         current: "Home",
         pages: {
           "Home": "# Home\n\n저장된 데이터를 불러오는 데 실패해서 초기화했습니다."
-        }
+        },
+        mode: "view",
+        historyPage: null,
+        historyIdx: null
       };
       saveState();
     }
@@ -95,37 +120,58 @@ function addHistory(pageName, content) {
 }
 
 // 모드 전환
-function setEditMode(on) {
-  isEditMode = on;
-  if (isEditMode) {
-    editorEl.value = state.pages[state.current] || "";
-    editorEl.classList.remove("hidden");
-    previewEl.classList.remove("fullwidth");
-    btnSave.classList.remove("hidden");
-    btnCancel.classList.remove("hidden");
-    updatePreview();
-  } else {
-    editorEl.classList.add("hidden");
-    previewEl.classList.add("fullwidth");
-    btnSave.classList.add("hidden");
-    btnCancel.classList.add("hidden");
-    renderPreview();
+function setMode(mode, options = {}) {
+  state.mode = mode;
+  
+  // 옵션 처리
+  if (options.historyPage !== undefined) state.historyPage = options.historyPage;
+  if (options.historyIdx !== undefined) state.historyIdx = options.historyIdx;
+  
+  // UI 업데이트
+  switch (mode) {
+    case "edit":
+      editorEl.value = state.pages[state.current] || "";
+      editorEl.classList.remove("hidden");
+      previewEl.classList.remove("fullwidth");
+      btnSave.classList.remove("hidden");
+      btnCancel.classList.remove("hidden");
+      updatePreview();
+      break;
+      
+    case "view":
+      editorEl.classList.add("hidden");
+      previewEl.classList.add("fullwidth");
+      btnSave.classList.add("hidden");
+      btnCancel.classList.add("hidden");
+      renderPreview();
+      break;
+      
+    case "list":
+      editorEl.classList.add("hidden");
+      previewEl.classList.add("fullwidth");
+      btnSave.classList.add("hidden");
+      btnCancel.classList.add("hidden");
+      renderAllList();
+      break;
+      
+    case "history":
+      editorEl.classList.add("hidden");
+      previewEl.classList.add("fullwidth");
+      btnSave.classList.add("hidden");
+      btnCancel.classList.add("hidden");
+      renderHistory(state.historyPage || state.current);
+      break;
+      
+    case "historyDetail":
+      editorEl.classList.add("hidden");
+      previewEl.classList.add("fullwidth");
+      btnSave.classList.add("hidden");
+      btnCancel.classList.add("hidden");
+      renderHistoryDetail(state.historyIdx);
+      break;
   }
-}
-
-function setAllMode(on) {
-  isAllMode = on;
-  if (isAllMode) {
-    setEditMode(false);
-    renderAllList();
-  } else {
-    renderCurrentPage();
-  }
-}
-
-// 렌더링
-function renderCurrentPage() {
-  setEditMode(false);
+  
+  buildTOC();
 }
 
 function renderPreview() {
@@ -147,7 +193,6 @@ function renderPreview() {
   attachInternalLinkHandlers();
   attachTitleButtonHandlers();
   addVisited(state.current);
-  buildTOC();
 }
 
 function attachTitleButtonHandlers() {
@@ -166,13 +211,13 @@ function attachTitleButtonHandlers() {
   
   if (editBtn) {
     editBtn.addEventListener("click", () => {
-      setEditMode(true);
+      setMode("edit");
     });
   }
   
   if (historyBtn) {
     historyBtn.addEventListener("click", () => {
-      renderHistory(state.current);
+      setMode("history", { historyPage: state.current });
     });
   }
 }
@@ -203,16 +248,14 @@ function renderAllList() {
       e.preventDefault();
       const name = decodeURIComponent(a.getAttribute("data-name"));
       state.current = name;
-      setAllMode(false);
       saveState();
+      setMode("view");
     });
   });
-
-  buildTOC();
 }
 
 function updatePreview() {
-  if (isAllMode || isHistoryMode || !isEditMode) {
+  if (state.mode !== "edit") {
     return;
   }
   const text = editorEl.value;
@@ -222,14 +265,9 @@ function updatePreview() {
   html += '</div>';
   previewEl.innerHTML = html;
   attachInternalLinkHandlers();
-  buildTOC();
 }
 
 function renderHistory(pageName) {
-  isHistoryMode = true;
-  isAllMode = false;
-  setEditMode(false);
-
   // 해당 페이지 기록만 필터링하되, 원본 인덱스도 함께 저장
   const pageHistory = history
     .map((h, idx) => ({ ...h, originalIdx: idx }))
@@ -266,20 +304,17 @@ function renderHistory(pageName) {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       const idx = parseInt(a.getAttribute("data-idx"));
-      renderHistoryDetail(idx);
+      setMode("historyDetail", { historyIdx: idx });
     });
   });
 
   // 돌아가기 버튼
   document.getElementById("back-to-page").addEventListener("click", (e) => {
     e.preventDefault();
-    isHistoryMode = false;
     state.current = pageName;
-    setAllMode(false);
     saveState();
+    setMode("view");
   });
-
-  buildTOC();
 }
 
 function renderHistoryDetail(idx) {
@@ -307,32 +342,19 @@ function renderHistoryDetail(idx) {
     if (confirm("이 버전으로 복원하시겠습니까?")) {
       state.pages[h.page] = h.content;
       addHistory(h.page, h.content); // 복원도 기록
-      saveState();
-      isHistoryMode = false;
       state.current = h.page;
-      setAllMode(false);
+      saveState();
+      setMode("view");
     }
   });
 
   document.getElementById("back-to-history").addEventListener("click", (e) => {
     e.preventDefault();
-    renderHistory(h.page);
+    setMode("history", { historyPage: h.page });
   });
-
-  buildTOC();
 }
 
-// 우측 사이드바 탭 시스템
-let currentRightTab = "toc"; // "toc" | "backlinks"
-
-// 좌측 사이드바 탭 시스템
-let currentLeftTab = "all"; // "all" | "pinned"
-let pagesSortMode = "alpha"; // "alpha" | "recent"
-
-const VISITED_KEY = "miniWikiVisited";
-const PINNED_KEY = "miniWikiPinned";
-let visitedTime = {}; // { pageName: timestamp }
-let pinned = []; // 고정된 문서 목록
+// ========== 우측 사이드바 ==========
 
 function loadVisited() {
   const raw = localStorage.getItem(VISITED_KEY);
@@ -448,7 +470,7 @@ function buildAllPagesContent() {
   
   html += '<ul class="pages-list">';
   for (const name of names) {
-    const isActive = name === state.current && !isAllMode && !isHistoryMode;
+    const isActive = name === state.current && state.mode === "view";
     html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}">`;
     html += `<a href="#" class="pages-link">${name}</a>`;
     html += '</li>';
@@ -482,9 +504,8 @@ function buildAllPagesContent() {
         e.preventDefault();
         const name = decodeURIComponent(item.getAttribute("data-name"));
         state.current = name;
-        isHistoryMode = false;
-        setAllMode(false);
         saveState();
+        setMode("view");
       });
     });
   }, 0);
@@ -501,7 +522,7 @@ function buildPinnedContent() {
   
   let html = '<ul class="pages-list pinned-list">';
   for (const name of validPinned) {
-    const isActive = name === state.current && !isAllMode && !isHistoryMode;
+    const isActive = name === state.current && state.mode === "view";
     html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}" draggable="true">`;
     html += `<span class="drag-handle">⋮⋮</span>`;
     html += `<a href="#" class="pages-link">${name}</a>`;
@@ -521,9 +542,8 @@ function buildPinnedContent() {
         e.preventDefault();
         const name = decodeURIComponent(item.getAttribute("data-name"));
         state.current = name;
-        isHistoryMode = false;
-        setAllMode(false);
         saveState();
+        setMode("view");
       });
       
       item.querySelector(".pin-btn").addEventListener("click", (e) => {
@@ -537,8 +557,6 @@ function buildPinnedContent() {
   
   return html;
 }
-
-let draggedItem = null;
 
 function initDragAndDrop(list) {
   const items = list.querySelectorAll(".pages-item");
@@ -614,8 +632,8 @@ function buildSidebarRight() {
 }
 
 function buildTOCContent() {
-  // All 모드, History 모드에서는 목차 비우기
-  if (isAllMode || isHistoryMode) {
+  // view, edit 모드에서만 목차 표시
+  if (state.mode !== "view" && state.mode !== "edit") {
     return '<p class="sidebar-empty">목차 없음</p>';
   }
 
@@ -683,7 +701,7 @@ function buildTOCContent() {
 }
 
 function buildBacklinksContent() {
-  if (isAllMode || isHistoryMode) {
+  if (state.mode !== "view") {
     return '<p class="sidebar-empty">백링크 없음</p>';
   }
 
@@ -721,9 +739,8 @@ function buildBacklinksContent() {
         e.preventDefault();
         const name = decodeURIComponent(a.getAttribute("data-page"));
         state.current = name;
-        isHistoryMode = false;
-        setAllMode(false);
         saveState();
+        setMode("view");
       });
     });
   }, 0);
@@ -775,18 +792,13 @@ function attachInternalLinkHandlers() {
         saveState();
       }
       state.current = name;
-      setAllMode(false);
       saveState();
+      setMode("view");
     });
   });
 }
 
-const btnTheme = document.getElementById("btn-theme");
-const btnExport = document.getElementById("btn-export");
-const btnImport = document.getElementById("btn-import");
-const importFileEl = document.getElementById("import-file");
-
-// 내보내기 함수
+// ========== 내보내기/가져오기 ==========
 function exportData() {
   const data = {
     pages: state.pages,
@@ -837,8 +849,7 @@ function importData(file) {
       saveHistory();
       
       // 화면 갱신
-      isHistoryMode = false;
-      setAllMode(false);
+      setMode("view");
       
       alert("가져오기 완료!");
     } catch (err) {
@@ -855,11 +866,11 @@ btnSave.addEventListener("click", () => {
   addHistory(state.current, newContent);
   state.pages[state.current] = newContent;
   saveState();
-  setEditMode(false);
+  setMode("view");
 });
 
 btnCancel.addEventListener("click", () => {
-  setEditMode(false);
+  setMode("view");
 });
 
 btnTheme.addEventListener("click", () => {
@@ -887,7 +898,7 @@ commandEl.addEventListener("keydown", (e) => {
     const cmd = commandEl.value.trim();
     if (!cmd) return;
 
-    if (isEditMode) {
+    if (state.mode === "edit") {
       state.pages[state.current] = editorEl.value;
       saveState();
     }
@@ -896,23 +907,20 @@ commandEl.addEventListener("keydown", (e) => {
     if (cmd.toLowerCase().startsWith(":history")) {
       const parts = cmd.split(" ");
       const pageName = parts.slice(1).join(" ") || state.current;
-      renderHistory(pageName);
+      setMode("history", { historyPage: pageName });
       commandEl.value = "";
       return;
     }
 
     if (cmd.toLowerCase() === "all") {
-      isHistoryMode = false;
-      setAllMode(true);
+      setMode("list");
     } else {
-      isHistoryMode = false;
-      setAllMode(false);
       if (!state.pages[cmd]) {
         state.pages[cmd] = "# " + cmd + "\n\n새 문서를 작성하세요.";
       }
       state.current = cmd;
       saveState();
-      renderCurrentPage();
+      setMode("view");
     }
 
     commandEl.value = "";
@@ -926,40 +934,44 @@ document.addEventListener("keydown", (e) => {
   // Ctrl+E: 편집 모드 진입
   if (e.ctrlKey && e.key === "e") {
     e.preventDefault();
-    if (!isAllMode && !isHistoryMode && !isEditMode) {
-      setEditMode(true);
+    if (state.mode === "view") {
+      setMode("edit");
     }
   }
   
   // Ctrl+S: 저장
   if (e.ctrlKey && e.key === "s") {
     e.preventDefault();
-    if (isEditMode) {
+    if (state.mode === "edit") {
       const newContent = editorEl.value;
       addHistory(state.current, newContent);
       state.pages[state.current] = newContent;
       saveState();
-      setEditMode(false);
+      setMode("view");
     }
   }
   
   // Esc: 편집 취소 / 모드 나가기
   if (e.key === "Escape") {
-    if (isEditMode) {
-      setEditMode(false);
-    } else if (isHistoryMode) {
-      isHistoryMode = false;
-      setAllMode(false);
-    } else if (isAllMode) {
-      setAllMode(false);
+    switch (state.mode) {
+      case "edit":
+        setMode("view");
+        break;
+      case "history":
+      case "historyDetail":
+        setMode("view");
+        break;
+      case "list":
+        setMode("view");
+        break;
     }
   }
   
   // Ctrl+H: 히스토리 보기
   if (e.ctrlKey && e.key === "h") {
     e.preventDefault();
-    if (!isAllMode && !isHistoryMode) {
-      renderHistory(state.current);
+    if (state.mode === "view") {
+      setMode("history", { historyPage: state.current });
     }
   }
 });
@@ -969,7 +981,7 @@ loadState();
 loadHistory();
 loadVisited();
 loadPinned();
-setAllMode(false);
+setMode("view");
 
 // 저장된 테마 적용
 if (localStorage.getItem("wikiTheme") === "light") {
