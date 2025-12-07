@@ -137,14 +137,33 @@ function renderCurrentPage() {
 
 function renderPreview() {
   const text = state.pages[state.current] || "";
+  const isPinned = pinned.includes(state.current);
+  
   let html = '<div class="content-wrapper">';
+  html += '<div class="page-title-row">';
   html += '<h1 class="page-title">' + state.current + '</h1>';
+  html += `<button class="title-pin-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? '고정 해제' : '고정'}">📌</button>`;
+  html += '</div>';
   html += marked.parse(text);
   html += '</div>';
   previewEl.innerHTML = html;
   attachInternalLinkHandlers();
+  attachPinButtonHandler();
   addVisited(state.current);
   buildTOC();
+}
+
+function attachPinButtonHandler() {
+  const pinBtn = previewEl.querySelector(".title-pin-btn");
+  if (pinBtn) {
+    pinBtn.addEventListener("click", () => {
+      togglePin(state.current);
+      // 버튼 상태 업데이트
+      const isPinned = pinned.includes(state.current);
+      pinBtn.classList.toggle("pinned", isPinned);
+      pinBtn.title = isPinned ? "고정 해제" : "고정";
+    });
+  }
 }
 
 function renderAllList() {
@@ -293,53 +312,89 @@ function renderHistoryDetail(idx) {
 let currentRightTab = "toc"; // "toc" | "backlinks"
 
 // 좌측 사이드바 탭 시스템
-let currentLeftTab = "pages"; // "pages" | "recent"
+let currentLeftTab = "all"; // "all" | "pinned"
+let pagesSortMode = "alpha"; // "alpha" | "recent"
 
 const VISITED_KEY = "miniWikiVisited";
-let visited = []; // 최근 방문 문서 (최대 10개)
+const PINNED_KEY = "miniWikiPinned";
+let visitedTime = {}; // { pageName: timestamp }
+let pinned = []; // 고정된 문서 목록
 
 function loadVisited() {
   const raw = localStorage.getItem(VISITED_KEY);
   if (raw) {
     try {
-      visited = JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      // 마이그레이션: 배열이면 객체로 변환
+      if (Array.isArray(parsed)) {
+        visitedTime = {};
+        parsed.forEach((name, idx) => {
+          visitedTime[name] = Date.now() - idx * 1000;
+        });
+        saveVisited();
+      } else {
+        visitedTime = parsed;
+      }
     } catch (e) {
-      visited = [];
+      visitedTime = {};
     }
   }
 }
 
 function saveVisited() {
-  localStorage.setItem(VISITED_KEY, JSON.stringify(visited));
+  localStorage.setItem(VISITED_KEY, JSON.stringify(visitedTime));
 }
 
 function addVisited(pageName) {
-  // 이미 있으면 제거 후 맨 앞에 추가
-  visited = visited.filter(v => v !== pageName);
-  visited.unshift(pageName);
-  // 최대 10개 유지
-  if (visited.length > 10) {
-    visited = visited.slice(0, 10);
-  }
+  visitedTime[pageName] = Date.now();
   saveVisited();
+}
+
+function loadPinned() {
+  const raw = localStorage.getItem(PINNED_KEY);
+  if (raw) {
+    try {
+      pinned = JSON.parse(raw);
+    } catch (e) {
+      pinned = [];
+    }
+  }
+}
+
+function savePinned() {
+  localStorage.setItem(PINNED_KEY, JSON.stringify(pinned));
+}
+
+function togglePin(pageName) {
+  const idx = pinned.indexOf(pageName);
+  if (idx === -1) {
+    pinned.push(pageName);
+  } else {
+    pinned.splice(idx, 1);
+  }
+  savePinned();
+  buildSidebarLeft();
 }
 
 function buildSidebarLeft() {
   const sidebarLeft = document.getElementById("sidebar-left");
   if (!sidebarLeft) return;
 
-  // 탭 헤더 생성
+  // 유효한 고정 문서 수 (삭제된 문서 제외)
+  const validPinnedCount = pinned.filter(name => state.pages[name]).length;
+
+  // 탭 헤더
   let html = '<div class="sidebar-tabs">';
-  html += `<button class="sidebar-tab ${currentLeftTab === 'pages' ? 'active' : ''}" data-tab="pages">문서</button>`;
-  html += `<button class="sidebar-tab ${currentLeftTab === 'recent' ? 'active' : ''}" data-tab="recent">최근</button>`;
+  html += `<button class="sidebar-tab ${currentLeftTab === 'all' ? 'active' : ''}" data-tab="all">전체</button>`;
+  html += `<button class="sidebar-tab ${currentLeftTab === 'pinned' ? 'active' : ''}" data-tab="pinned">고정${validPinnedCount > 0 ? ' ' + validPinnedCount : ''}</button>`;
   html += '</div>';
 
   // 탭 내용
   html += '<div class="sidebar-tab-content">';
-  if (currentLeftTab === "pages") {
-    html += buildPagesContent();
-  } else if (currentLeftTab === "recent") {
-    html += buildRecentContent();
+  if (currentLeftTab === "all") {
+    html += buildAllPagesContent();
+  } else if (currentLeftTab === "pinned") {
+    html += buildPinnedContent();
   }
   html += '</div>';
 
@@ -354,10 +409,26 @@ function buildSidebarLeft() {
   });
 }
 
-function buildPagesContent() {
-  const names = Object.keys(state.pages).sort((a, b) => a.localeCompare(b, "ko"));
+function buildAllPagesContent() {
+  let names = Object.keys(state.pages);
   
-  let html = '<div class="pages-filter">';
+  if (pagesSortMode === "alpha") {
+    names.sort((a, b) => a.localeCompare(b, "ko"));
+  } else if (pagesSortMode === "recent") {
+    names.sort((a, b) => {
+      const timeA = visitedTime[a] || 0;
+      const timeB = visitedTime[b] || 0;
+      return timeB - timeA;
+    });
+  }
+  
+  // 정렬 토글
+  let html = '<div class="sort-toggle-row">';
+  html += `<button class="sort-btn ${pagesSortMode === 'alpha' ? 'active' : ''}" data-sort="alpha">가나다</button>`;
+  html += `<button class="sort-btn ${pagesSortMode === 'recent' ? 'active' : ''}" data-sort="recent">최근</button>`;
+  html += '</div>';
+  
+  html += '<div class="pages-filter">';
   html += '<input type="text" id="pages-filter-input" placeholder="문서 필터..." />';
   html += '</div>';
   
@@ -370,8 +441,15 @@ function buildPagesContent() {
   }
   html += '</ul>';
   
-  // 필터링 및 클릭 이벤트는 buildSidebarLeft 후에 바인딩
   setTimeout(() => {
+    // 정렬 버튼 이벤트
+    document.querySelectorAll(".sort-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        pagesSortMode = btn.getAttribute("data-sort");
+        buildSidebarLeft();
+      });
+    });
+    
     const filterInput = document.getElementById("pages-filter-input");
     const items = document.querySelectorAll(".pages-item");
     
@@ -400,23 +478,19 @@ function buildPagesContent() {
   return html;
 }
 
-function buildRecentContent() {
-  if (visited.length === 0) {
-    return '<p class="sidebar-empty">최근 방문한 문서가 없습니다</p>';
-  }
+function buildPinnedContent() {
+  const validPinned = pinned.filter(name => state.pages[name]);
   
-  // 삭제된 문서 제외
-  const validVisited = visited.filter(name => state.pages[name]);
-  
-  if (validVisited.length === 0) {
-    return '<p class="sidebar-empty">최근 방문한 문서가 없습니다</p>';
+  if (validPinned.length === 0) {
+    return '<p class="sidebar-empty">고정된 문서가 없습니다.<br><span style="font-size:11px;">전체 탭에서 📌 버튼을 눌러 고정하세요.</span></p>';
   }
   
   let html = '<ul class="pages-list">';
-  for (const name of validVisited) {
+  for (const name of validPinned) {
     const isActive = name === state.current && !isAllMode && !isHistoryMode;
     html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}">`;
     html += `<a href="#" class="pages-link">${name}</a>`;
+    html += `<button class="pin-btn pinned" title="고정 해제">📌</button>`;
     html += '</li>';
   }
   html += '</ul>';
@@ -430,6 +504,13 @@ function buildRecentContent() {
         isHistoryMode = false;
         setAllMode(false);
         saveState();
+      });
+      
+      item.querySelector(".pin-btn").addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const name = decodeURIComponent(item.getAttribute("data-name"));
+        togglePin(name);
       });
     });
   }, 0);
@@ -835,6 +916,7 @@ document.addEventListener("keydown", (e) => {
 loadState();
 loadHistory();
 loadVisited();
+loadPinned();
 setAllMode(false);
 
 // 저장된 테마 적용

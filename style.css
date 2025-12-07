@@ -197,6 +197,43 @@ body {
 }
 
 /* 미리보기 기본 마크다운 스타일 */
+#preview .page-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--heading-border);
+}
+
+#preview .page-title-row .page-title {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.title-pin-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.4;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.title-pin-btn:hover {
+  opacity: 0.8;
+  background: var(--btn-bg);
+}
+
+.title-pin-btn.pinned {
+  opacity: 1;
+  background: var(--btn-bg);
+}
+
 #preview .page-title {
   font-size: 28px;
   font-weight: 700;
@@ -431,6 +468,43 @@ body {
 }
 
 /* 좌측 사이드바 - 문서 목록 */
+.sort-toggle-row {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.sort-btn {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sort-btn:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.sort-btn:last-child {
+  border-radius: 0 3px 3px 0;
+  border-left: none;
+}
+
+.sort-btn:hover {
+  background: var(--btn-bg);
+  color: var(--text-primary);
+}
+
+.sort-btn.active {
+  background: var(--btn-primary);
+  border-color: var(--btn-primary);
+  color: #ffffff;
+}
+
 .pages-filter {
   margin-bottom: 8px;
 }
@@ -463,9 +537,12 @@ body {
 
 .pages-item {
   margin: 2px 0;
+  display: flex;
+  align-items: center;
 }
 
 .pages-link {
+  flex: 1;
   display: block;
   color: var(--text-secondary);
   text-decoration: none;
@@ -487,4 +564,21 @@ body {
   color: var(--text-primary);
   background: var(--btn-bg);
   font-weight: 500;
+}
+
+.pin-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.pin-btn:hover {
+  opacity: 1;
 }
