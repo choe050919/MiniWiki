@@ -482,13 +482,14 @@ function buildPinnedContent() {
   const validPinned = pinned.filter(name => state.pages[name]);
   
   if (validPinned.length === 0) {
-    return '<p class="sidebar-empty">고정된 문서가 없습니다.<br><span style="font-size:11px;">전체 탭에서 📌 버튼을 눌러 고정하세요.</span></p>';
+    return '<p class="sidebar-empty">고정된 문서가 없습니다.<br><span style="font-size:11px;">문서 제목 옆 📌 버튼을 눌러 고정하세요.</span></p>';
   }
   
-  let html = '<ul class="pages-list">';
+  let html = '<ul class="pages-list pinned-list">';
   for (const name of validPinned) {
     const isActive = name === state.current && !isAllMode && !isHistoryMode;
-    html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}">`;
+    html += `<li class="pages-item ${isActive ? 'active' : ''}" data-name="${encodeURIComponent(name)}" draggable="true">`;
+    html += `<span class="drag-handle">⋮⋮</span>`;
     html += `<a href="#" class="pages-link">${name}</a>`;
     html += `<button class="pin-btn pinned" title="고정 해제">📌</button>`;
     html += '</li>';
@@ -496,6 +497,11 @@ function buildPinnedContent() {
   html += '</ul>';
   
   setTimeout(() => {
+    const list = document.querySelector(".pinned-list");
+    if (list) {
+      initDragAndDrop(list);
+    }
+    
     document.querySelectorAll("#sidebar-left .pages-item").forEach(item => {
       item.querySelector(".pages-link").addEventListener("click", (e) => {
         e.preventDefault();
@@ -516,6 +522,51 @@ function buildPinnedContent() {
   }, 0);
   
   return html;
+}
+
+let draggedItem = null;
+
+function initDragAndDrop(list) {
+  const items = list.querySelectorAll(".pages-item");
+  
+  items.forEach(item => {
+    item.addEventListener("dragstart", (e) => {
+      draggedItem = item;
+      item.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    
+    item.addEventListener("dragend", () => {
+      item.classList.remove("dragging");
+      draggedItem = null;
+      // 새 순서 저장
+      updatePinnedOrder(list);
+    });
+    
+    item.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!draggedItem || draggedItem === item) return;
+      
+      const rect = item.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      
+      if (e.clientY < midY) {
+        list.insertBefore(draggedItem, item);
+      } else {
+        list.insertBefore(draggedItem, item.nextSibling);
+      }
+    });
+  });
+}
+
+function updatePinnedOrder(list) {
+  const newOrder = [];
+  list.querySelectorAll(".pages-item").forEach(item => {
+    const name = decodeURIComponent(item.getAttribute("data-name"));
+    newOrder.push(name);
+  });
+  pinned = newOrder;
+  savePinned();
 }
 
 function buildSidebarRight() {
