@@ -2,3 +2,5 @@
 function calculateDamage(base, modifier) {
   return base * modifier;
 }
+
+// 테스트용 주석 추가!
