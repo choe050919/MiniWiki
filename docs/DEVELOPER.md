@@ -12,6 +12,7 @@
 ├── router.js       # 네비게이션 및 모드 변경
 ├── editor.js       # 마크다운 에디터 로직
 ├── sidebar.js      # 사이드바 관리
+├── settings.js     # 사용자 설정 관리
 └── utils.js        # 헬퍼 함수
 ```
 
@@ -20,6 +21,8 @@
 이 앱은 바닐라 자바스크립트로 작성된 **SPA(Single Page Application)** 형태입니다.  
 모든 애플리케이션 상태는 중앙 상태 관리 모듈인 `store.js`를 통해 관리됩니다. 기존 `script.js`에 있던 전역 `state` 객체는 스토어의 메서드를 호출하는 방식으로 대체되었습니다.
 
+사용자 설정은 새로운 `settings.js` 모듈을 통해 중앙에서 관리됩니다. 스토어는 이 모듈과 상호작용하기 위해 `getSettings()`와 `updateSetting(key, value)` 메서드를 제공합니다.
+
 ### 1\. 주요 상수 (Storage Keys)
 
   * `miniWikiDocs`: 문서 데이터 객체 저장.
@@ -27,6 +30,7 @@
   * `miniWikiVisited`: 최근 방문 기록 저장.
   * `miniWikiPinned`: 사이드바에 고정된 문서 목록 저장.
   * `miniWikiLinks`: 문서 간 링크 인덱스 저장 (백링크 계산 최적화용).
+  * `miniWikiSettings`: 사용자 설정 객체 저장.
 
 ### 2\. 모드 시스템
 
@@ -66,7 +70,7 @@ UI는 스토어에서 관리하는 현재 모드(`mode`)에 따라 렌더링이 
 ## 🎨 스타일링 (Theming)
 
 `style.css`의 `:root` 가상 클래스에서 CSS 변수를 정의하여 다크 모드를 기본으로 설정했습니다.
-`.light` 클래스가 `<html>` 태그에 붙으면 변수 값이 재정의되어 라이트 모드로 전환됩니다.
+`.light` 클래스가 `<html>` 태그에 붙으면 변수 값이 재정의되어 라이트 모드로 전환됩니다. 테마 상태는 `settings.js`를 통해 관리됩니다.
 
 ## ⚠️ 개발 시 유의사항
 
