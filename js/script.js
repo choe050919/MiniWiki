@@ -26,6 +26,24 @@ const btnTheme = document.getElementById("btn-theme");
 const btnExport = document.getElementById("btn-export");
 const btnImport = document.getElementById("btn-import");
 const importFileEl = document.getElementById("import-file");
+const hljsThemeEl = document.getElementById("hljs-theme");
+
+// ========== highlight.js 설정 ==========
+const HLJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles";
+
+marked.setOptions({
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, { language: lang }).value;
+    }
+    return hljs.highlightAuto(code).value;
+  }
+});
+
+function setHljsTheme(isLight) {
+  const theme = isLight ? "github" : "github-dark";
+  hljsThemeEl.href = `${HLJS_CDN}/${theme}.min.css`;
+}
 
 // ========== 내보내기/가져오기 ==========
 function exportData() {
@@ -110,6 +128,7 @@ btnTheme.addEventListener("click", () => {
   const isLight = document.documentElement.classList.toggle("light");
   btnTheme.textContent = isLight ? "🌙" : "☀️";
   localStorage.setItem("wikiTheme", isLight ? "light" : "dark");
+  setHljsTheme(isLight);
 });
 
 btnExport.addEventListener("click", exportData);
@@ -220,7 +239,10 @@ loadLinkIndex();
 setMode("view");
 
 // 저장된 테마 적용
-if (localStorage.getItem("wikiTheme") === "light") {
+const savedTheme = localStorage.getItem("wikiTheme");
+const isLight = savedTheme === "light";
+if (isLight) {
   document.documentElement.classList.add("light");
   btnTheme.textContent = "🌙";
 }
+setHljsTheme(isLight);
