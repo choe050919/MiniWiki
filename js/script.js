@@ -31,12 +31,13 @@ const hljsThemeEl = document.getElementById("hljs-theme");
 // ========== highlight.js 설정 ==========
 const HLJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles";
 
-marked.setOptions({
-  highlight: function(code, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value;
+marked.use({
+  renderer: {
+    code(text, lang) {
+      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+      const highlighted = hljs.highlight(text, { language }).value;
+      return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
     }
-    return hljs.highlightAuto(code).value;
   }
 });
 
