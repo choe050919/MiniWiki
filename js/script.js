@@ -33,7 +33,7 @@ const HLJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/st
 
 marked.use({
   renderer: {
-    code(text, lang) {
+    code({ text, lang }) {
       const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
       const highlighted = hljs.highlight(text, { language }).value;
       return `<pre><code class="hljs language-${language}">${highlighted}</code></pre>`;
