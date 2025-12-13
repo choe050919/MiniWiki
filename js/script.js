@@ -24,6 +24,7 @@ const commandEl = document.getElementById("command");
 const btnSave = document.getElementById("btn-save");
 const btnCancel = document.getElementById("btn-cancel");
 const btnTheme = document.getElementById("btn-theme");
+const btnFlash = document.getElementById("btn-flash");
 const btnExport = document.getElementById("btn-export");
 const btnImport = document.getElementById("btn-import");
 const importFileEl = document.getElementById("import-file");
@@ -46,6 +47,16 @@ function setHljsTheme(isLight) {
   const theme = isLight ? "github" : "github-dark";
   hljsThemeEl.href = `${HLJS_CDN}/${theme}.min.css`;
 }
+
+function applyTheme(isLight, { persist = true } = {}) {
+  document.documentElement.classList.toggle("light", isLight);
+  btnTheme.textContent = isLight ? "🌙" : "☀️";
+  setHljsTheme(isLight);
+  if (persist) {
+    localStorage.setItem("wikiTheme", isLight ? "light" : "dark");
+  }
+}
+
 
 // ========== 내보내기/가져오기 ==========
 function exportData() {
@@ -194,10 +205,8 @@ btnCancel.addEventListener("click", () => {
 });
 
 btnTheme.addEventListener("click", () => {
-  const isLight = document.documentElement.classList.toggle("light");
-  btnTheme.textContent = isLight ? "🌙" : "☀️";
-  localStorage.setItem("wikiTheme", isLight ? "light" : "dark");
-  setHljsTheme(isLight);
+  const isLight = document.documentElement.classList.contains("light");
+  applyTheme(!isLight, { persist: true });
 });
 
 btnExport.addEventListener("click", exportData);
@@ -311,8 +320,40 @@ setMode("view");
 // 저장된 테마 적용
 const savedTheme = localStorage.getItem("wikiTheme");
 const isLight = savedTheme === "light";
-if (isLight) {
-  document.documentElement.classList.add("light");
-  btnTheme.textContent = "🌙";
+applyTheme(isLight, { persist: false });
+
+// ========== 눈뽕(⚠️) 버튼 ==========
+let _flashTimer = null;
+let _flashStopTimer = null;
+
+function startFlashBomb({ intervalMs = 120, durationMs = 1200 } = {}) {
+  if (_flashTimer) return; // 이미 실행 중이면 무시
+
+  const initialIsLight = document.documentElement.classList.contains("light");
+
+  // 버튼 잠금
+  if (btnFlash) btnFlash.disabled = true;
+
+  _flashTimer = setInterval(() => {
+    const isLightNow = document.documentElement.classList.contains("light");
+    // 저장값은 건드리지 않음
+    applyTheme(!isLightNow, { persist: false });
+  }, intervalMs);
+
+  _flashStopTimer = setTimeout(() => {
+    clearInterval(_flashTimer);
+    _flashTimer = null;
+
+    // 원래 테마로 복구(저장값 유지)
+    applyTheme(initialIsLight, { persist: false });
+
+    if (btnFlash) btnFlash.disabled = false;
+    _flashStopTimer = null;
+  }, durationMs);
 }
-setHljsTheme(isLight);
+
+if (btnFlash) {
+  btnFlash.addEventListener("click", () => {
+    startFlashBomb({ intervalMs: 120, durationMs: 1200 });
+  });
+}
