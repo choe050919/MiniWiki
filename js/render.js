@@ -95,6 +95,7 @@ export function renderPreview() {
   html += `<button class="title-btn" id="title-btn-edit" title="편집">편집</button>`;
   html += `<button class="title-btn" id="title-btn-history" title="역사">역사</button>`;
   html += `<button class="title-btn title-btn-delete" id="title-btn-delete" title="삭제">삭제</button>`;
+  html += `<button class="title-btn" id="title-btn-export" title="이 문서를 .md 파일로 내보내기">내보내기</button>`;
   html += `<button class="title-pin-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? '고정 해제' : '고정'}">📌</button>`;
   html += '</div>';
   html += '</div>';
@@ -140,6 +141,22 @@ function attachTitleButtonHandlers() {
         deletePageFromState(state.current);
         setMode("view");
       }
+    });
+  }
+  
+  const exportBtn = previewEl.querySelector("#title-btn-export");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", () => {
+      const content = state.pages[state.current] || "";
+      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = state.current + ".md";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     });
   }
 }
